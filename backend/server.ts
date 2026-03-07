@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import { Server, Socket } from "socket.io";
 import connectDB from "./config/database.js";
+import { errorHandler, notFound } from "./middleware/error.middleware.js";
 
 
 dotenv.config();
@@ -88,8 +89,8 @@ io.on("connection", (socket: Socket) => {
 });
 
 
-// app.use(notFound);
-// app.use(errorHandler);
+app.use(notFound);
+app.use(errorHandler);
 
 // Define the port – from environment or default to 5000
 const PORT: number = parseInt(process.env.PORT as string, 10) || 5000;
