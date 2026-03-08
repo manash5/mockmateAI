@@ -6,6 +6,7 @@ import cors from "cors";
 import { Server, Socket } from "socket.io";
 import connectDB from "./config/database.js";
 import { errorHandler, notFound } from "./middleware/error.middleware.js";
+import userRoutes from "./routes/user.routes.js";
 
 
 dotenv.config();
@@ -69,7 +70,7 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 
-// app.use('/api/users', userRoutes);
+app.use('/api/users', userRoutes);
 // app.use('/api/sessions', sessionRoutes);
 
 // Handle new Socket.IO connections

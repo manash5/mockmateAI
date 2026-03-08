@@ -44,7 +44,7 @@ const registerUser = asyncHandler(async(req: Request<{}, {}, AuthBody>, res: Res
 })
 
 
-const LoginUser =async(req: Request , res: Response, next: NextFunction)=> {
+const LoginUser =asyncHandler(async(req: Request , res: Response, next: NextFunction)=> {
     const {email, password} = req.body; 
     if (!email || !password){
         res.status(400); 
@@ -64,7 +64,7 @@ const LoginUser =async(req: Request , res: Response, next: NextFunction)=> {
         res.status(400); 
         throw new Error("Invalid credentials ")
     }
-}
+}); 
 
 const googleLogin = asyncHandler(async (req: Request<{}, {}, GoogleAuthBody>, res: Response) => {
   
@@ -157,24 +157,25 @@ const updateUserProfile = asyncHandler(async(req: Request, res: Response)=>{
     
     if(!user){
         res.status(404); 
-        throw new Error("User not found");
+        throw new Error("User not found in database");
     }
     
-    user.name = req.body.name || user.name; 
-    user.email = req.body.email || user.email; 
-    user.preferredRole = req.body.preferredRole || user.preferredRole;
+    const body = req.body || {};
     
-    if(req.body.password){
-        user.password = req.body.password; 
-    }
+    if(body.name) user.name = body.name;
+    if(body.email) user.email = body.email;
+    if(body.preferredRole) user.preferredRole = body.preferredRole;
+    if(body.password) user.password = body.password;
     
-    await user.save();
+    const updatedUser = await user.save();
     
     res.status(200).json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        preferredRole: user.preferredRole,
-        token: generateToken(user._id.toString()),
+        _id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        preferredRole: updatedUser.preferredRole,
+        token: generateToken(updatedUser._id.toString()),
     });
 })
+
+export {registerUser, LoginUser, googleLogin, getUserProfile, updateUserProfile}; 

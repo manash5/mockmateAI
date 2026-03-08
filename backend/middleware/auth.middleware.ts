@@ -14,13 +14,13 @@ declare global {
 }
 
 interface DecodedToken extends JwtPayload {
-  userId?: string;
+  id?: string;
   [key: string]: unknown;
 }
 
 const protect = asyncHandler(async(req: Request, res: Response, next: NextFunction)=> {
     let token: string; 
-    if(req.headers.authorization && req.headers.authorization.startsWith('Bearrer')){
+    if(req.headers.authorization && req.headers.authorization.startsWith('Bearer')){
         try {
             token = req.headers.authorization.split(' ')[1] as string; 
             if (!token) {
@@ -28,7 +28,7 @@ const protect = asyncHandler(async(req: Request, res: Response, next: NextFuncti
                 return;
             }
             const decoded= jwt.verify(token, process.env.JWT_SECRET as string ) as DecodedToken; 
-            req.user  = await User.findById(decoded.userId).select("-password"); 
+            req.user  = await User.findById(decoded.id).select("-password"); 
             if(!req.user){
                 res.status(401); 
                 throw new Error("User not found ")
@@ -39,9 +39,10 @@ const protect = asyncHandler(async(req: Request, res: Response, next: NextFuncti
             res.status(401); 
             throw new Error("Not Authorized, token failed "); 
         }
+    } else {
+        res.status(401);
+        throw new Error("Not authorized, no token");
     }
-
-
 })
 
 export {protect}; 
