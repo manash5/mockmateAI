@@ -121,7 +121,26 @@ async def generateQuestions(request: QuestionRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/transcribe")
+async def transcribe_audio(file: UploadFile=File(...)): 
+    try: 
+        audio_bytes = await file.read()
+        audio_in_memory = io.BytesIO(audio_bytes)
+        audio_segment=AudioSegment.from_file(audio_in_memory)
+        with tempfile.NamedTemporaryFile(delete = False, suffix=".mp3") as tmp: 
+            temp_audio_path = tmp.name 
+            audio_segment.export(temp_audio_path, format = "mp3")
+        if not WHISPER_MODEL: 
+            raise HTTPException(status_code=503,detail="Whisper Model is not loaded")
+        
+        result = WHISPER_MODEL.transcribe(temp_audio_path)
 
+        os.remove(temp_audio_path)
+        return {"transcription": result["text"].strip()}
+    except Exception as e: 
+        if 'temp_audio_path' in locals() and os.path.exists(temp_audio_path):
+            os.remove(temp_audio_path)
+        raise HTTPException(status_code=500,detail=str(e))
 
 if __name__ == "__main__": 
     uvicorn.run(app, host = "0.0.0.0", port=AI_SERVICE_PORT)
