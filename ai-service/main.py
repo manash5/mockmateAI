@@ -1,6 +1,6 @@
 from google import genai
 from google.genai import types
-from sympy import re
+import re
 import uvicorn 
 import os 
 import io
@@ -112,7 +112,7 @@ async def root():
 async def generateQuestions(request: QuestionRequest): 
     
     try: 
-        if request.interview_type == "coding-mix": 
+        if request.interview_type in ("coding-mix", "coding mix"):
             coding_count = int(request.count * 0.2)
             oral_oral = int(request.count) - int(coding_count)
 
@@ -123,15 +123,25 @@ async def generateQuestions(request: QuestionRequest):
         else: 
             intruction="All questions MUST be conceptual oral questions. Do Not generate any coding or implementation challenges."
         
-        system_prompt=(
-            "You are a professional technical interviewer. "
-            "Task: Generate interview questions. No conversational text or numbering. "
-            f"Crucial : {intruction}"
-            "Output exactly one question per line. "
+        system_prompt = (
+            "You are a senior technical interviewer at a top-tier tech company (FAANG level). "
+            "Your job is to generate REAL, HIGH-SIGNAL interview questions that are currently being asked in the industry. "
+            "Use your knowledge of recent hiring trends, LinkedIn posts from candidates who got hired, "
+            "tech interview blogs (LeetCode discussions, Blind, Glassdoor, levels.fyi), and GitHub interview prep repos. "
+            "RULES: "
+            "1. Questions must reflect what is ACTUALLY being asked in real interviews in 2024-2025 for this exact role and level. "
+            "2. For coding questions: specify the exact problem type (e.g., 'sliding window', 'dynamic programming', 'system design'). "
+            "3. For conceptual questions: ask scenario-based questions ('How would you...', 'What happens when...', 'Debug this scenario...') NOT trivia. "
+            "4. Vary difficulty appropriately for the level — Junior should get fundamentals + one hard stretch, Senior should get architecture + tradeoffs. "
+            "5. Output EXACTLY one question per line. No numbering, no bullet points, no extra text. "
+            f"CRUCIAL FORMAT RULES: {intruction}"
         )
 
-        user_prompt=(
-            f"Generate exactly {request.count} unique interview questions for a {request.level}  level {request.role} "
+        user_prompt = (
+            f"Generate exactly {request.count} interview questions for a {request.level}-level {request.role} position. "
+            f"These should reflect questions being asked at top companies right now in 2024-2025. "
+            f"Prioritize questions that candidates report seeing on platforms like Blind, Glassdoor, and LeetCode discuss. "
+            f"Make coding questions specific with clear problem statements. Make oral questions scenario-driven and thought-provoking."
         )
 
         client = genai.Client()
@@ -142,7 +152,8 @@ async def generateQuestions(request: QuestionRequest):
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt, 
                 temperature=0.6, 
-                max_output_tokens=2048
+                max_output_tokens=2048,
+                tools=[types.Tool(google_search=types.GoogleSearch())]
             )
         )
         raw_text = response.text.strip()
@@ -204,21 +215,49 @@ async def evaluate(request: EvaluationRequest):
             )
 
         system_instruction = (
-            "You are a strict technical interviewer. "
-            "Do NOT hallucinate positive reviews for bad input. "
-            "RULE 1: If the answer is gibberish, irrelevant, or missing, return 'technicalScore':0 and 'confidenceScore':0. "
-            "RULE 2: For 'idealAnswer', provide a clean Markdown string. Do NOT return a nested JSON object. "
+            "You are a principal engineer conducting a technical interview at a top-tier company. "
+            "You have seen thousands of interviews. You are strict, fair, and deeply technical. "
+            "Your evaluation must be HONEST — do not inflate scores for weak answers. "
+            ""
+            "SCORING RUBRIC: "
+            "technicalScore (0-100): "
+            "  - 90-100: Answer is complete, correct, mentions edge cases, time/space complexity, and shows deep understanding. "
+            "  - 70-89: Mostly correct, minor gaps, acceptable for the role level. "
+            "  - 50-69: Partially correct but missing key concepts or has logical errors. "
+            "  - 20-49: Shows basic awareness but answer is incomplete or has significant mistakes. "
+            "  - 0-19: Wrong, empty, gibberish, or completely off-topic. "
+            ""
+            "confidenceScore (0-100): Based on how well-structured, clear, and decisive the verbal explanation was. "
+            "  - High score: Clear structure, uses correct terminology, addresses follow-ups proactively. "
+            "  - Low score: Vague, uncertain language, unable to explain their own logic, rambling. "
+            "  - ZERO if verbal answer is empty, random noise, or irrelevant to the question. "
+            ""
+            "aiFeedback: 3-4 sentences. Structure as: (1) What they got right. (2) What was missing or wrong. (3) One specific improvement tip for this exact role/level. "
+            ""
+            "idealAnswer: A comprehensive Markdown answer that a HIRED candidate would give. Include: "
+            "  - For oral: clear explanation, real-world analogy if helpful, edge cases, and WHY it works. "
+            "  - For coding: working code with comments, time/space complexity analysis, and mention of alternative approaches. "
+            "  - Reference patterns that top candidates use (seen on LeetCode, interview blogs, hired engineer posts). "
+            ""
             f"Context: {assessment_instruction} "
-            "Respond ONLY with a JSON object. "
-            "Required keys: 'technicalScore' (0-100), 'confidenceScore' (0-100), 'aiFeedback' (string), 'idealAnswer' (string)."
+            ""
+            "CRITICAL RULES: "
+            "RULE 1: If answer is gibberish, empty, or irrelevant → technicalScore: 0, confidenceScore: 0. "
+            "RULE 2: idealAnswer MUST be a plain Markdown string, NOT a nested JSON object. "
+            "RULE 3: Respond ONLY with a valid JSON object. No preamble, no markdown code fences, no extra text. "
+            "Required keys: 'technicalScore' (int), 'confidenceScore' (int), 'aiFeedback' (string), 'idealAnswer' (string)."
         )
 
         user_prompt = (
             f"Role: {request.role}\n"
-            f"Question: {request.question}\n"
-            f"Level: {request.level}\n"
-            f"Verbal Answer: {request.user_answer or 'No verbal answer provided'}\n"
-            f"Code Answer: {request.user_code or 'No code provided'}\n"
+            f"Seniority Level: {request.level}\n"
+            f"Question Type: {request.question_type}\n"
+            f"Interview Question: {request.question}\n\n"
+            f"Candidate's Verbal Answer (transcribed): {request.user_answer or 'No verbal answer provided.'}\n\n"
+            f"Candidate's Code Submission:\n```\n{request.user_code or 'No code provided.'}\n```\n\n"
+            f"Evaluate this candidate as if you are deciding whether to hire them at a top tech company for this exact role and level. "
+            f"The ideal answer should reflect what successful candidates who got this role actually answered — "
+            f"based on real interview reports from Glassdoor, Blind, and LinkedIn posts from hired engineers."
         )
 
         # Configure Gemini model with lower temperature for consistency
