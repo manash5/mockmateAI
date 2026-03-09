@@ -61,3 +61,8 @@ class EvaluationResponse(BaseModel):
     confidenceScore:int
     aiFeedback:str
     idealAnswer:str
+
+
+@app.get("/")
+async def root(): 
+    return {"message":"Hello from AI Interviewer Microservice !","model":OLLAMA_MODEL_NAME}
