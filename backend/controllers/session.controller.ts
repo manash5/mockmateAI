@@ -1,14 +1,13 @@
 import asyncHandler from 'express-async-handler'; 
 import { type NextFunction, type Request, type Response } from 'express'; 
-import Session from '../models/session.model.js';
+import Session, { type ISession } from '../models/session.model.js';
 import fetch from 'node-fetch'; 
 import fs from 'fs'; 
 import FormData from 'form-data';
 import path from 'path';
-import mongoose from 'mongoose';
+import mongoose, { type ObjectId } from 'mongoose';
 import type { Server } from 'socket.io';
 
-type SessionStatus = 'pending' | 'in-progress' | 'completed' | 'failed';
 
 interface SessionUpdateData {
   overallScore?: number;
@@ -36,6 +35,10 @@ const pushSocketUpdate = (
     })
 }
 
+
+// @desc    Create a new interview session and start AI question generation
+// @route   POST /api/sessions/
+// @access  Private
 const createSession = asyncHandler(async(req: Request, res: Response)=> {
   const {role, level, interviewType, count} = req.body; 
   const userId = req.user!._id; 
@@ -112,12 +115,20 @@ const createSession = asyncHandler(async(req: Request, res: Response)=> {
   
 })
 
+
+// @desc    Get all interview sessions for the current user
+// @route   GET /api/sessions/
+// @access  Private
 const getSessions = asyncHandler(async(req: Request, res: Response)=> {
   const userId = req.params.id; 
   const session = await Session.find({user: userId}); 
   res.status(200).json(session); 
 })
 
+
+// @desc    Get a specific session detail
+// @route   GET /api/sessions/:id
+// @access  Private
 const getSessionById = asyncHandler(async(req: Request, res: Response)=> {
   const session = await Session.findOne({_id: req.params.id, user: req.user!._id}); 
 
@@ -129,6 +140,10 @@ const getSessionById = asyncHandler(async(req: Request, res: Response)=> {
   }
 })
 
+
+// @desc    Delete a session
+// @route   DELETE /api/sessions/:id
+// @access  Private
 const deleteSession = asyncHandler(async(req: Request, res: Response)=> {
   const session = await Session.findById(req.params.id);
 
@@ -148,6 +163,58 @@ const deleteSession = asyncHandler(async(req: Request, res: Response)=> {
     res.status(200).json({ id: req.params.id });
 }); 
 
+
+// @desc    Submit an answer (Audio or Code)
+// @route   POST /api/sessions/:id/submit-answer
+// @access  Private
+const submitAnswer = asyncHandler(async (req: Request, res: Response) => {
+    const sessionId = req.params.id;
+    const { questionIndex, code } = req.body; // Remove submissionType if not strictly needed
+    const userId = req.user!._id;
+
+    const session = await Session.findById(sessionId);
+
+    if (!session || session.user.toString() !== userId.toString()) {
+        res.status(404);
+        throw new Error('Session not found or user unauthorized.');
+    }
+
+    if (!session.questions || session.questions.length === 0) {
+        res.status(400);
+        throw new Error('No questions found in this session.');
+    }
+
+    const questionIdx = parseInt(questionIndex, 10);
+    const question = session.questions[questionIdx];
+
+    if (!question) {
+        res.status(400);
+        throw new Error(`Question at index ${questionIdx} not found.`);
+    }
+
+    let audioFilePath = null;
+    if (req.file) {
+        audioFilePath = path.join(process.cwd(), req.file.path);
+    }
+
+    const codeSubmission = code || null;
+
+
+    question.isSubmitted = true;
+    await session.save();
+
+    res.status(202).json({
+        message: 'Answer received. Processing asynchronously...',
+        status: 'received',
+    });
+
+    const io = req.app.get('io');
+
+    evaluateAnswerAsync(io, userId.toString(), sessionId!.toString() , questionIdx, audioFilePath, codeSubmission);
+});
+
+
+
 const evaluateAnswerAsync = async (
   io: Server,
   userId: string,
@@ -156,10 +223,8 @@ const evaluateAnswerAsync = async (
   audioFilePath: string | null = null,
   code: string | null = null
 ): Promise<void> => {
-  // Normalize question index to number
   const questionIdx = typeof questionIndex === 'string' ? parseInt(questionIndex, 10) : questionIndex;
 
-  // Fetch the session from DB
   const session = await Session.findById(sessionId);
   if (!session) {
     console.error(`Session ${sessionId} not found`);
@@ -170,14 +235,12 @@ const evaluateAnswerAsync = async (
         throw new Error('No questions found in this session.');
     }
 
-  // Validate that the question exists
   const question = session.questions[questionIdx];
   if (!question) {
     pushSocketUpdate(io, userId, sessionId, 'EVALUATION_FAILED', `Q${questionIdx + 1} not found.`, null);
     return;
   }
 
-  // --- Phase 1: Transcription (only if audio file provided) ---
   let transcription = '';
   if (audioFilePath) {
     try {
@@ -198,12 +261,13 @@ const evaluateAnswerAsync = async (
 
       const transData = (await transResponse.json()) as { transcription?: string };
       transcription = transData.transcription || '';
+
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       console.error(`Transcription Error: ${err.message}`);
-      // Continue even if transcription fails; code may still be evaluated.
+
     } finally {
-      // Clean up the temporary audio file if it exists
+
       if (audioFilePath && fs.existsSync(audioFilePath)) {
         fs.unlinkSync(audioFilePath);
       }
@@ -265,12 +329,10 @@ const evaluateAnswerAsync = async (
         session.endTime = session.endTime || new Date();
       }
 
-      // Save session with global score updates
       await session.save();
 
       pushSocketUpdate(io, userId, sessionId, 'SESSION_COMPLETED', 'Scores finalized.', session);
     } else {
-      // Normal update: only this question evaluated, interview still in progress
       await session.save();
       pushSocketUpdate(io, userId, sessionId, 'EVALUATION_COMPLETE', `Feedback for Q${questionIdx + 1} is ready!`, session);
     }
@@ -281,10 +343,48 @@ const evaluateAnswerAsync = async (
   }
 };
 
-const submitAnswer = asyncHandler(async (req: Request, res: Response) => {
-    const sessionId = req.params.id;
-    const { questionIndex, code } = req.body; // Remove submissionType if not strictly needed
-    const userId = req.user!._id;
+
+
+const calculateOverallScore = async (sessionId: string) => {
+    const results = await Session.aggregate([
+        { $match: { _id: new mongoose.Types.ObjectId(sessionId) } },
+        { $unwind: '$questions' },
+        // REMOVED: { $match: { 'questions.isSubmitted': true } } 
+        // We now keep all questions to ensure they are part of the average.
+        {
+            $group: {
+                _id: '$_id',
+                // If a question is evaluated, use its score; otherwise, use 0.
+                avgTechnical: {
+                    $avg: { $cond: [{ $eq: ['$questions.isEvaluated', true] }, '$questions.technicalScore', 0] }
+                },
+                avgConfidence: {
+                    $avg: { $cond: [{ $eq: ['$questions.isEvaluated', true] }, '$questions.confidenceScore', 0] }
+                }
+            }
+        },
+        {
+            $project: {
+                _id: 0,
+                // Overall score is the average of the technical and confidence averages across ALL questions.
+                overallScore: { $round: [{ $avg: ['$avgTechnical', '$avgConfidence'] }, 0] },
+                avgTechnical: { $round: ['$avgTechnical', 0] },
+                avgConfidence: { $round: ['$avgConfidence', 0] },
+            }
+        }
+    ]);
+
+    return results[0] || { overallScore: 0, avgTechnical: 0, avgConfidence: 0 };
+};
+
+
+
+// @desc    End the session early
+// @route   POST /api/sessions/:id/end
+// @access  Private
+const endSession = asyncHandler(async (req: Request, res: Response) => {
+    const sessionId = req.params.id as string;
+    const userId = req.user!._id; // non‑null assertion – protect middleware ensures user exists
 
     const session = await Session.findById(sessionId);
 
@@ -294,35 +394,46 @@ const submitAnswer = asyncHandler(async (req: Request, res: Response) => {
     }
 
     if (!session.questions || session.questions.length === 0) {
+      res.status(400);
+      throw new Error('No questions found in this session.');
+    }
+
+    const isProcessing = session.questions.some(q => q.isSubmitted && !q.isEvaluated);
+    if (isProcessing) {
         res.status(400);
-        throw new Error('No questions found in this session.');
+        throw new Error('Cannot end interview while AI is processing answers.');
     }
 
-    const questionIdx = parseInt(questionIndex, 10);
-    const question = session.questions[questionIdx];
-
-    if (!question) {
+    if (session.status === 'completed') {
         res.status(400);
-        throw new Error(`Question at index ${questionIdx} not found.`);
+        throw new Error('Session is already completed.');
     }
 
-    let audioFilePath = null;
-    if (req.file) {
-        audioFilePath = path.join(process.cwd(), req.file.path);
-    }
 
-    const codeSubmission = code || null;
+    const scoreSummary = await calculateOverallScore(sessionId);
 
+    session.overallScore = scoreSummary.overallScore || 0;
+    session.status = 'completed';
+    session.endTime = new Date();
+    session.metrics = {
+        avgTechnical: scoreSummary.avgTechnical,
+        avgConfidence: scoreSummary.avgConfidence,
+    };
 
-    question.isSubmitted = true;
     await session.save();
 
-    res.status(202).json({
-        message: 'Answer received. Processing asynchronously...',
-        status: 'received',
-    });
+    const io = req.app.get('io') as Server; // cast to Server type from socket.io
+    pushSocketUpdate(io, userId.toString(), sessionId, 'SESSION_COMPLETED', 'Interview session ended early.', session);
 
-    const io = req.app.get('io');
-
-    evaluateAnswerAsync(io, userId.toString(), sessionId!.toString() , questionIdx, audioFilePath, codeSubmission);
+    res.json({ message: 'Session ended successfully.', session });
 });
+
+export {
+    createSession,
+    getSessionById,
+    getSessions,
+    submitAnswer,
+    endSession,
+    calculateOverallScore,
+    deleteSession
+};
