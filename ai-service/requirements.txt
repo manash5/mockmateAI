@@ -3,8 +3,9 @@ fastapi
 uvicorn
 pydantic
 python-dotenv
-google-generativeai
+google-genai
 openai-whisper
 pydub
 ffmpeg-python
 python-multipart
+audioop-lts  
