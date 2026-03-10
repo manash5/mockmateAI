@@ -105,7 +105,7 @@ def parse_json_response(text: str):
 
 @app.get("/")
 async def root(): 
-    return {"message":"Hello from AI Interviewer Microservice !","model":GEMINI_MODEL_NAME}
+    return {"message":"Hello from MockMate AI Microservice !","model":GEMINI_MODEL_NAME}
 
 
 @app.post('/generate-questions', response_model =  QuestionResponse)
