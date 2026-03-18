@@ -287,12 +287,32 @@ async def evaluate(request: EvaluationRequest):
         except ValueError as e:
             print(f"Failed to parse JSON: {e}")
             print(f"Raw response: {response_text}")
-            # Return a default failed evaluation
+
+            # Fallback: try to salvage fields via regex from the raw text
+            def _extract_int(key: str, default: int = 0) -> int:
+                m = re.search(rf'"{key}"\s*:\s*(\d+)', response_text)
+                return int(m.group(1)) if m else default
+
+            def _extract_str(key: str, default: str = "") -> str:
+                m = re.search(rf'"{key}"\s*:\s*"([^"]*)"', response_text)
+                return m.group(1) if m else default
+
+            technical = _extract_int("technicalScore", 0)
+            confidence = _extract_int("confidenceScore", 0)
+            ai_feedback = _extract_str(
+                "aiFeedback",
+                "Failed to fully parse evaluation response, but a partial score was recovered.",
+            )
+            ideal_answer = _extract_str(
+                "idealAnswer",
+                "Ideal answer could not be parsed from the AI response.",
+            )
+
             return EvaluationResponse(
-                technicalScore=0,
-                confidenceScore=0,
-                aiFeedback="Failed to parse evaluation response. Please try again.",
-                idealAnswer="Unable to generate ideal answer."
+                technicalScore=technical,
+                confidenceScore=confidence,
+                aiFeedback=ai_feedback,
+                idealAnswer=ideal_answer,
             )
 
         # Ensure idealAnswer is a string (in case Gemini returns an object)
