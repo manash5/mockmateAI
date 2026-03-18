@@ -71,7 +71,7 @@ function SessionReview() {
   const dispatch = useDispatch()
   const { activeSession, isLoading } = useSelector((state: any) => state.sessions)
 
-  useEffect(() => { dispatch(getSessionById(sessionId) as any) }, [dispatch, sessionId])
+  useEffect(() => { dispatch(getSessionById(sessionId ) as any) }, [dispatch, sessionId] )
 
   if (isLoading) {
     return (

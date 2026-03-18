@@ -5,7 +5,7 @@ type BrandLogoProps = {
   animated?: boolean
 }
 
-export const BrandLogo: React.FC<BrandLogoProps> = ({ className = 'h-5 w-5', animated = true }) => {
+export const BrandLogo: React.FC<BrandLogoProps> = ({ className = 'h-5 w-5 ', animated = true }) => {
   const rectTransition = animated ? { duration: 1.1, ease: 'easeInOut' } : { duration: 0 }
   const pathTransition = animated ? { delay: 0.12, duration: 0.9, ease: 'easeInOut' } : { duration: 0 }
   const dotTransition = animated ? { delay: 0.5, type: 'spring', stiffness: 300, damping: 20 } : { duration: 0 }

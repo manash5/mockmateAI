@@ -46,14 +46,14 @@ const Preloader: React.FC<{ onDone: () => void }> = ({ onDone }) => {
             <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
               <motion.rect
                 x="4" y="4" width="64" height="64" rx="20"
-                stroke="rgba(108,99,255,0.3)"
+                stroke="bg-blue"
                 strokeWidth="1.5"
                 initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
                 transition={{ duration: 1.2, ease: 'easeInOut' }}
               />
               <motion.rect
                 x="4" y="4" width="64" height="64" rx="20"
-                fill="rgba(108,99,255,0.1)"
+                fill="bg-blue"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                 transition={{ delay: 0.4, duration: 0.6 }}
               />
@@ -766,7 +766,7 @@ const Landing: React.FC = () => {
             {/* ── HERO ── */}
             <FloatingIconsHero
               ref={heroRef}
-              title="Master Every Interview"
+              title="Master Every Interview" 
               subtitle="Practice with AI-generated questions tailored to your role. Get real-time feedback on your code and verbal answers."
               ctaText="Start Practicing Free"
               ctaHref="/register"

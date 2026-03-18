@@ -15,7 +15,7 @@ const ROLES = [
 const Profile: React.FC = () => {
   const dispatch = useDispatch()
   const { user, isSuccess, isError, message, isProfileLoading } = useSelector((state: any) => state.auth)
-  const [formData, setFormData] = useState({ name: user?.name || '', email: user?.email || '', preferredRole: user?.preferredRole || '' })
+  const [formData, setFormData] = useState({ name: user?.name || '', email: user?.email || '', password: user?.password || '',  preferredRole: user?.preferredRole || '' })
 
   useEffect(() => {
     if (!isError && !isSuccess) return
@@ -25,7 +25,7 @@ const Profile: React.FC = () => {
   }, [isError, isSuccess, message, dispatch])
 
   useEffect(() => {
-    if (user) setFormData({ name: user.name || '', email: user.email || '', preferredRole: user.preferredRole || '' })
+    if (user) setFormData({ name: user.name || '', email: user.email || '', preferredRole: user.preferredRole || '' , password: user?.password || '',})
   }, [user])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -34,7 +34,7 @@ const Profile: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (formData.name === user.name && formData.preferredRole === user.preferredRole) { toast.info('No changes to save.'); return }
-    dispatch(updateProfile(formData) as any)
+    dispatch(updateProfile(formData) as any); 
   }
 
   const initials = user?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || '?'

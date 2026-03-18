@@ -43,7 +43,9 @@ export const getSessions = createAsyncThunk('sessions/getAll', async (_, thunkAP
     }
 })
 
-export const createSession = createAsyncThunk('sessions/create', async (sessionData, thunkAPI) => {
+export const createSession = createAsyncThunk('sessions/create', async (sessionData:{
+    role: string, level: string, interviewType: string, count: number 
+}, thunkAPI) => {
     try {
         const response = await api.post('/', sessionData);
         return response.data;
@@ -53,7 +55,7 @@ export const createSession = createAsyncThunk('sessions/create', async (sessionD
     }
 })
 
-export const getSessionById = createAsyncThunk('sessions/getOne', async (sessionId, thunkAPI) => {
+export const getSessionById = createAsyncThunk('sessions/getOne', async (sessionId : string, thunkAPI) => {
     try {
         const response = await api.get(`/${sessionId}`);
         return response.data;
@@ -63,7 +65,7 @@ export const getSessionById = createAsyncThunk('sessions/getOne', async (session
     }
 })
 
-export const deleteSession = createAsyncThunk('sessions/delete', async (sessionId, thunkAPI) => {
+export const deleteSession = createAsyncThunk('sessions/delete', async (sessionId: string, thunkAPI) => {
     try {
         const response = await api.delete(`/${sessionId}`);
         return response.data.id;
@@ -74,7 +76,7 @@ export const deleteSession = createAsyncThunk('sessions/delete', async (sessionI
     }
 })
 
-export const submitAnswer = createAsyncThunk('sessions/submitAnswer', async ({ sessionId, formData }, thunkAPI) => {
+export const submitAnswer = createAsyncThunk('sessions/submitAnswer', async ({ sessionId, formData }: { sessionId: string; formData: any }, thunkAPI) => {
     try {
         const response = await api.post(`/${sessionId}/submit-answer`, formData);
         return response.data;
@@ -85,7 +87,7 @@ export const submitAnswer = createAsyncThunk('sessions/submitAnswer', async ({ s
     }
 })
 
-export const endSession = createAsyncThunk('sessions/endSession', async (sessionId, thunkAPI) => {
+export const endSession = createAsyncThunk('sessions/endSession', async (sessionId: string, thunkAPI) => {
     try {
         const response = await api.post(`/${sessionId}/end`);
         return response.data;
@@ -143,7 +145,7 @@ export const sessionSlice = createSlice({
             .addCase(getSessions.rejected, (state, action) => {
                 state.isLoading = false;
                 state.isError = true;
-                state.message = action.payload;
+                state.message = action.payload as string;
             })
             .addCase(createSession.pending, (state) => { state.isLoading = true; state.isGenerating = true; state.activeSession = null; })
             .addCase(createSession.fulfilled, (state) => { state.isLoading = false; })
@@ -151,7 +153,7 @@ export const sessionSlice = createSlice({
                 state.isLoading = false;
                 state.isError = true;
                 state.isGenerating = false;
-                state.message = action.payload;
+                state.message = action.payload as string;
             })
             .addCase(getSessionById.fulfilled, (state, action) => {
                 state.activeSession = action.payload;
@@ -176,7 +178,7 @@ export const sessionSlice = createSlice({
             })
             .addCase(submitAnswer.rejected, (state, action) => {
                 state.isError = true;
-                state.message = action.payload;
+                state.message = action.payload as string;
             });
     }
 })

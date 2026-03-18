@@ -5,6 +5,7 @@ import { createSession, getSessions, reset, deleteSession } from '../features/se
 import { toast } from 'react-toastify'
 import SessionCard from '../components/SessionCard'
 import { motion } from 'framer-motion'
+import { AppDispatch } from '@/app/store'
 
 const ROLES = [
   "MERN Stack Developer","MEAN Stack Developer","Full Stack Python","Full Stack Java",
@@ -18,7 +19,7 @@ const TYPES = [{ label: 'Oral Only', value: 'oral-only' }, { label: 'Coding Mix'
 const COUNTS = [5, 10, 15]
 
 const Dashboard: React.FC = () => {
-  const dispatch = useDispatch()
+  const dispatch = useDispatch<AppDispatch>()
   const navigate = useNavigate()
   const { user } = useSelector((state: any) => state.auth)
   const { sessions, isLoading, isGenerating, isError, message } = useSelector((state: any) => state.sessions)
@@ -38,7 +39,7 @@ const Dashboard: React.FC = () => {
   const onChange = (e: React.ChangeEvent<HTMLSelectElement>) =>
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
 
-  const onSubmit = (e: React.FormEvent) => { e.preventDefault(); dispatch(createSession(formData) as any) }
+  const onSubmit = (e: React.FormEvent) => { e.preventDefault(); dispatch(createSession(formData)) }
 
   const viewSession = (session: any) => {
     if (session.status === 'completed') navigate(`/review/${session._id}`)

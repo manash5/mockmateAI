@@ -1,5 +1,7 @@
 import {createSlice,createAsyncThunk} from '@reduxjs/toolkit'
+import type { RootState } from '../../app/store'; 
 import axios from 'axios'
+
 
 const API_URL=`${import.meta.env.VITE_API_URL}/users/`;
 
@@ -14,7 +16,7 @@ const initialState={
     message:''
 }
 
-export const register=createAsyncThunk('auth/register',async(userData,thunkAPI)=>{
+export const register=createAsyncThunk('auth/register',async(userData: {name: string, email: string, password: string},thunkAPI)=>{
     try {
         const response =await axios.post(`${API_URL}register`,userData);
         if(response.data){
@@ -27,7 +29,7 @@ export const register=createAsyncThunk('auth/register',async(userData,thunkAPI)=
     }
 })
 
-export const login=createAsyncThunk('auth/login',async(userData,thunkAPI)=>{
+export const login=createAsyncThunk('auth/login',async(userData: { email: string; password: string },thunkAPI)=>{
     try {
         const response =await axios.post(`${API_URL}login`,userData);
         if(response.data){
@@ -57,9 +59,15 @@ export const logout=createAsyncThunk('auth/logout',async()=>{
     localStorage.removeItem('user');
 })
 
-export const updateProfile=createAsyncThunk('auth/update',async(userData,thunkAPI)=>{
+export const updateProfile=createAsyncThunk('auth/update',async(userData:{
+    name: String, 
+    email: String, 
+    preferredRole: String, 
+    password: String, 
+},thunkAPI)=>{
     try{
-        const token = thunkAPI.getState().auth.user.token;
+        const state = thunkAPI.getState() as RootState;
+        const token = state.auth.user?.token;
        const config={
            headers:{
                Authorization:`Bearer ${token}`
@@ -98,7 +106,7 @@ export const authSlice=createSlice({
         .addCase(register.rejected,(state,action)=>{
             state.isLoading=false;
             state.isError=true;
-            state.message=action.payload;
+            state.message=action.payload as string;
             state.user=null;
         })
         .addCase(login.pending,(state)=>{
@@ -112,7 +120,7 @@ export const authSlice=createSlice({
         .addCase(login.rejected,(state,action)=>{
             state.isLoading=false;
             state.isError=true;
-            state.message=action.payload;
+            state.message=action.payload as string;
             state.user=null;
         })
       
@@ -127,7 +135,7 @@ export const authSlice=createSlice({
         .addCase(googleLogin.rejected,(state,action)=>{
             state.isLoading=false;
             state.isError=true;
-            state.message=action.payload;
+            state.message=action.payload as string;
             state.user=null;
         })
           .addCase(logout.fulfilled,(state)=>{
@@ -145,7 +153,7 @@ export const authSlice=createSlice({
         .addCase(updateProfile.rejected,(state,action)=>{
             state.isProfileLoading = false
             state.isError=true;
-            state.message=action.payload;
+            state.message=action.payload as string;
             
         })
     }

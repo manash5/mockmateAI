@@ -9,15 +9,7 @@ import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-d
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
-// Auto-redirect root to /landing for first-time visitors
-// (PrivateRoute handles redirect to /login if unauthenticated)
-const Root = () => (
-  <Routes>
-    <Route path="/landing" element={<></>} />
-    <Route path="*" element={<App />} />
-  </Routes>
-)
-
+// handles error 
 axios.interceptors.response.use(
   (response) => response,
   (error) => {

@@ -49,7 +49,7 @@ function InterviewRunner() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const streamRef = useRef<MediaStream | null>(null)
-  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     if (activeSession?.role) {
