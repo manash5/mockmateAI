@@ -14,7 +14,7 @@ interface GoogleAuthBody {
   token: string;
 }
 
-const client = new OAuth2Client(process.env.GOOLGE_CLIENT_ID); 
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID); 
 
 const registerUser = asyncHandler(async(req: Request<{}, {}, AuthBody>, res: Response)=> {
     const {name, email, password} = req.body; 

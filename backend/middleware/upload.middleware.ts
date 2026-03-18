@@ -44,5 +44,6 @@ const upload = multer({
     limits: { fileSize: 1024 * 1024 * 10 } // 10 MB
 });
 
-const uploadSingleAudio = upload.single("audio");
+// The field name must match the frontend: 'audioFile'
+const uploadSingleAudio = upload.single("audioFile");
 export default uploadSingleAudio;

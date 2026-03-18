@@ -42,12 +42,14 @@ export const login=createAsyncThunk('auth/login',async(userData: { email: string
     }
 })
 
-export const googleLogin=createAsyncThunk('auth/googleLogin',async(token,thunkAPI)=>{
+export const googleLogin=createAsyncThunk('auth/google',async(token,thunkAPI)=>{
+    console.log("we are here ")
     try {
         const response =await axios.post(`${API_URL}google`,{token});
         if(response.data){
             localStorage.setItem('user',JSON.stringify(response.data))
         }
+        console.log(response.data); 
         return response.data
     } catch (error) {
         const message=(error.response && error.response.data && error.response.data.message) || error.message || error.toString();

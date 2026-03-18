@@ -65,42 +65,43 @@ class EvaluationResponse(BaseModel):
     aiFeedback:str
     idealAnswer:str
 
-# Helper function for JSON parsing 
+def _strip_code_fences(text: str) -> str:
+    text = text.strip()
+    if text.startswith("```"):
+        # Drop the opening fence line (``` or ```json etc.)
+        first_nl = text.find("\n")
+        text = text[first_nl + 1 :] if first_nl != -1 else ""
+    if text.endswith("```"):
+        text = text[:-3]
+    return text.strip()
+
+
+# Helper function for JSON parsing
 def parse_json_response(text: str):
     """
-    Attempt to parse JSON from Gemini response.
-    Falls back to cleaning the text or extracting from markdown code block.
+    Robustly parse a JSON object/array from a model response that may contain
+    markdown fences or leading/trailing text.
     """
-    text = text.strip()
-    # Try direct parse
+    text = _strip_code_fences(text)
+
+    # Fast path: response is already pure JSON
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
 
-    # Try to extract JSON from markdown code block (```json ... ```)
-    json_match = re.search(r'```(?:json)?\s*\n(.*?)\n```', text, re.DOTALL)
-    if json_match:
+    # Safer than a greedy regex: find first JSON value and decode from there.
+    decoder = json.JSONDecoder()
+    candidates = [i for i in (text.find("{"), text.find("[")) if i != -1]
+    if candidates:
+        start = min(candidates)
         try:
-            return json.loads(json_match.group(1))
+            obj, _end = decoder.raw_decode(text[start:])
+            return obj
         except json.JSONDecodeError:
             pass
 
-    # Try to find first { and last } and parse that substring
-    start = text.find('{')
-    end = text.rfind('}')
-    if start != -1 and end != -1 and end > start:
-        try:
-            return json.loads(text[start:end+1])
-        except json.JSONDecodeError:
-            pass
-
-    # Last resort: remove newlines and tabs and try again
-    cleaned = re.sub(r'[\r\n\t]', ' ', text)
-    try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError:
-        raise ValueError("Could not parse JSON from response")
+    raise ValueError("Could not parse JSON from response")
     
 
 @app.get("/")
@@ -246,6 +247,11 @@ async def evaluate(request: EvaluationRequest):
             "RULE 2: idealAnswer MUST be a plain Markdown string, NOT a nested JSON object. "
             "RULE 3: Respond ONLY with a valid JSON object. No preamble, no markdown code fences, no extra text. "
             "Required keys: 'technicalScore' (int), 'confidenceScore' (int), 'aiFeedback' (string), 'idealAnswer' (string)."
+            # Add this to the end of your system_instruction string:
+            "RULE 4: Ensure all string values are properly JSON-escaped. "
+            "No raw newlines inside string values — use \\n instead. "
+            "No unescaped double quotes inside string values. "
+            "RULE 5: Keep 'idealAnswer' concise (max ~1200 characters). Do NOT include triple backticks/code fences inside 'idealAnswer'."
         )
 
         user_prompt = (
@@ -268,7 +274,9 @@ async def evaluate(request: EvaluationRequest):
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction, 
                 temperature=0.1, 
-                max_output_tokens=1024
+                max_output_tokens=1536,
+                response_mime_type="application/json",
+                response_json_schema=EvaluationResponse.model_json_schema(),
             )
         )
         response_text = response.text.strip()
@@ -295,8 +303,16 @@ async def evaluate(request: EvaluationRequest):
         required_keys = ['technicalScore', 'confidenceScore', 'aiFeedback', 'idealAnswer']
         if not all(key in evaluation_data for key in required_keys):
             missing = [key for key in required_keys if key not in evaluation_data]
-            raise ValueError(f"Missing keys in evaluation response: {missing}")
+            print(f"Missing keys in evaluation response: {missing}")
+            print(f"Raw response: {response_text}")
+            return EvaluationResponse(
+                technicalScore=0,
+                confidenceScore=0,
+                aiFeedback="Failed to parse evaluation response. Please try again.",
+                idealAnswer="Unable to generate ideal answer."
+            )
 
+        # Return only valid JSON response
         return EvaluationResponse(**evaluation_data)
 
     except Exception as e:

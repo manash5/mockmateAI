@@ -198,7 +198,7 @@ function InterviewRunner() {
       </div>
 
       {/* Question */}
-      <div className='card navy-mesh p-6 sm:p-8'>
+      <div className='card navy-mesh p-6 sm:p-8 text-black'>
         <div className='flex items-center gap-2 mb-3'>
           <span className='badge bg-purple/20 text-purple-light border border-purple/20 text-[11px]'>
             Question {currentQuestionIndex + 1} of {totalQ}
@@ -216,7 +216,7 @@ function InterviewRunner() {
             </span>
           )}
         </div>
-        <h2 className='text-lg sm:text-xl font-500 text-white leading-relaxed'>{currentQuestion?.questionText}</h2>
+        <h2 className='text-lg sm:text-xl font-500 text-black leading-relaxed'>{currentQuestion?.questionText}</h2>
       </div>
 
       {/* Answer Section */}

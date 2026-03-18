@@ -78,7 +78,12 @@ export const deleteSession = createAsyncThunk('sessions/delete', async (sessionI
 
 export const submitAnswer = createAsyncThunk('sessions/submitAnswer', async ({ sessionId, formData }: { sessionId: string; formData: any }, thunkAPI) => {
     try {
-        const response = await api.post(`/${sessionId}/submit-answer`, formData);
+        // Let Axios set the correct Content-Type for FormData and ensure Authorization header is set by the interceptor
+        const response = await api.post(`/${sessionId}/submit-answer`, formData, {
+            headers: {
+                // Do NOT set Content-Type manually, let Axios handle it for FormData
+            }
+        });
         return response.data;
     }
     catch (error) {

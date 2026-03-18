@@ -7,7 +7,10 @@ import App from './App'
 import store from './app/store'
 import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom'
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
+const GOOGLE_CLIENT_ID =
+  import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+  import.meta.env.VITE_GOOLGE_CLIENT_ID ||
+  ''
 
 // handles error 
 axios.interceptors.response.use(

@@ -4,13 +4,14 @@ import { useDispatch, useSelector } from 'react-redux';
 import { socketUpdateSession } from '../features/sessions/sessionSlice';
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
+import { RootState } from '@/app/store';
 
 const BACKEND_URL = import.meta.env.VITE_API_URL.replace('/api', ''); 
 
 const useSocket = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { user } = useSelector((state) => state.auth);
+  const { user } = useSelector((state: RootState) => state.auth);
   const socketRef = useRef(null);
 
   useEffect(() => {
